@@ -1,0 +1,333 @@
+<title>Calculadora de Figuras</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: hoja de papel milimetrado; columna única centrada con 3 pasos (figura → medidas → resultado) */
+:root {
+  --bg: #f3f6f8;
+  --grid: #dfe7ec;
+  --paper: #ffffff;
+  --ink: #17242e;
+  --muted: #5a6b77;
+  --line: #c9d5dd;
+  --accent: #1f5f8b;
+  --accent-soft: #e3eef6;
+  --accent-ink: #ffffff;
+  --error: #b3261e;
+  --error-soft: #fbe9e7;
+  --ok: #24704a;
+  --f-display: "Archivo", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", Consolas, "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f171d; --grid: #18232b; --paper: #16212a; --ink: #e4ecf1; --muted: #93a5b1;
+    --line: #2b3a45; --accent: #6fb0dc; --accent-soft: #1c3346; --accent-ink: #0b1720;
+    --error: #ff8a80; --error-soft: #3a1d1b; --ok: #7fd3a5; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f171d; --grid: #18232b; --paper: #16212a; --ink: #e4ecf1; --muted: #93a5b1;
+  --line: #2b3a45; --accent: #6fb0dc; --accent-soft: #1c3346; --accent-ink: #0b1720;
+  --error: #ff8a80; --error-soft: #3a1d1b; --ok: #7fd3a5; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 16px;
+  line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 48px;
+}
+.wrap { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+header h1 {
+  font-family: var(--f-display); font-weight: 800; font-size: clamp(1.8rem, 5vw, 2.5rem);
+  line-height: 1.1; margin: 0 0 6px; text-wrap: balance; letter-spacing: -0.01em;
+}
+header p { margin: 0; color: var(--muted); max-width: 60ch; }
+.sheet {
+  background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
+  padding: 22px; display: flex; flex-direction: column; gap: 16px;
+}
+.step-label {
+  font-family: var(--f-mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent); margin: 0;
+}
+h2 { font-family: var(--f-display); font-weight: 700; font-size: 1.25rem; margin: 0; }
+h3 { font-family: var(--f-body); font-weight: 600; font-size: 0.85rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 8px; }
+.group { display: flex; flex-direction: column; }
+.chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.chip {
+  display: flex; align-items: center; gap: 10px; text-align: left;
+  font: 600 0.95rem var(--f-body); color: var(--ink);
+  background: var(--paper); border: 1px solid var(--line); border-radius: 8px;
+  padding: 9px 10px; cursor: pointer; min-width: 0;
+}
+.chip svg { flex: none; width: 28px; height: 28px; }
+.chip svg * { fill: none; stroke: var(--muted); stroke-width: 1.6; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.chip[aria-pressed="true"] svg * { stroke: var(--accent); }
+.chip:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 3px solid var(--accent); outline-offset: 2px;
+}
+form { display: flex; flex-direction: column; gap: 14px; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+label { font-weight: 600; font-size: 0.95rem; }
+label .req { color: var(--error); }
+input, select {
+  font: 400 1rem var(--f-mono); color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: 6px; padding: 9px 10px; width: 100%;
+}
+input[aria-invalid="true"], select[aria-invalid="true"] { border-color: var(--error); background: var(--error-soft); }
+.err { color: var(--error); font-size: 0.85rem; min-height: 1.2em; }
+.formulas { font-family: var(--f-mono); font-size: 0.85rem; color: var(--muted);
+  background: var(--bg); border: 1px dashed var(--line); border-radius: 6px; padding: 10px 12px; overflow-x: auto; }
+.formulas div { white-space: nowrap; }
+.btn {
+  font: 700 1rem var(--f-display); border-radius: 8px; padding: 11px 20px; cursor: pointer;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink);
+}
+.btn.secondary { background: transparent; color: var(--accent); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.results { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.result { border: 1px solid var(--line); border-radius: 8px; padding: 14px; min-width: 0; }
+.result .name { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+.result .value { font: 600 1.6rem var(--f-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.result .work { font: 400 0.82rem var(--f-mono); color: var(--muted); overflow-wrap: anywhere; }
+.ask { border-top: 1px solid var(--line); padding-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+.ask p { margin: 0; font-weight: 600; font-size: 1.05rem; }
+.bye { text-align: center; padding-block: 28px; }
+.bye p { color: var(--muted); margin: 0; }
+footer { color: var(--muted); font-size: 0.85rem; }
+@media (prefers-reduced-motion: no-preference) {
+  .sheet { animation: rise .25s ease-out; }
+  @keyframes rise { from { transform: translateY(6px); opacity: .6; } to { transform: none; opacity: 1; } }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Calculadora de figuras geométricas</h1>
+    <p>Calcula el perímetro y el área de figuras planas, y el área superficial y el volumen de sólidos regulares.</p>
+  </header>
+
+  <section class="sheet" id="paso1" aria-labelledby="t1">
+    <p class="step-label">Paso 1</p>
+    <h2 id="t1">Elige una figura</h2>
+    <div class="group"><h3>Figuras planas · perímetro y área</h3><div class="chips" id="planas"></div></div>
+    <div class="group"><h3>Sólidos · área superficial y volumen</h3><div class="chips" id="solidos"></div></div>
+  </section>
+
+  <section class="sheet" id="paso2" aria-labelledby="t2">
+    <p class="step-label">Paso 2</p>
+    <h2 id="t2">Medidas del <span id="figName"></span></h2>
+    <form id="form" novalidate>
+      <div class="fields">
+        <div class="field">
+          <label for="unidad">Unidad de medida <span class="req">*</span></label>
+          <select id="unidad">
+            <option value="">Elige una unidad…</option>
+            <option value="mm">Milímetros (mm)</option>
+            <option value="cm">Centímetros (cm)</option>
+            <option value="m">Metros (m)</option>
+            <option value="km">Kilómetros (km)</option>
+          </select>
+          <span class="err" id="err-unidad"></span>
+        </div>
+      </div>
+      <div class="fields" id="inputs"></div>
+      <div class="formulas" id="formulas" aria-label="Fórmulas"></div>
+      <div class="row"><button class="btn" type="submit">Calcular</button></div>
+    </form>
+  </section>
+
+  <section class="sheet" id="paso3" aria-labelledby="t3" aria-live="polite" hidden>
+    <p class="step-label">Resultado</p>
+    <h2 id="t3"></h2>
+    <div class="results" id="results"></div>
+    <div class="ask">
+      <p>¿Quieres realizar otra consulta?</p>
+      <div class="row">
+        <button class="btn" type="button" id="si">Sí</button>
+        <button class="btn secondary" type="button" id="no">No</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="sheet bye" id="fin" hidden>
+    <h2>Fin del programa. ¡Gracias!</h2>
+    <p>Gracias por usar la calculadora.</p>
+    <div class="row" style="justify-content:center"><button class="btn secondary" type="button" id="reiniciar">Volver a empezar</button></div>
+  </section>
+
+  <footer>Los resultados se redondean a 2 decimales. Perímetro en unidades lineales, área en unidades², volumen en unidades³.</footer>
+</div>
+
+<script>
+const S3 = Math.sqrt(3), S5 = Math.sqrt(5), PI = Math.PI;
+const ICON = {
+  cuadrado: '<rect x="6" y="6" width="16" height="16"/>',
+  rectangulo: '<rect x="3" y="8" width="22" height="12"/>',
+  triangulo: '<path d="M14 4 L25 23 L3 23 Z"/>',
+  circulo: '<circle cx="14" cy="14" r="10"/>',
+  poligono: '<path d="M14 3 L24 9 L24 19 L14 25 L4 19 L4 9 Z"/>',
+  cubo: '<path d="M5 9 L14 4 L23 9 L23 19 L14 24 L5 19 Z M5 9 L14 14 L23 9 M14 14 L14 24"/>',
+  tetraedro: '<path d="M14 3 L25 22 L3 22 Z M14 3 L12 22"/>',
+  octaedro: '<path d="M14 2 L24 14 L14 26 L4 14 Z M4 14 L24 14"/>',
+  dodecaedro: '<path d="M14 3 L24 10 L20 23 L8 23 L4 10 Z M14 8 L19 12 L17 18 L11 18 L9 12 Z"/>',
+  icosaedro: '<path d="M14 2 L25 9 L25 19 L14 26 L3 19 L3 9 Z M3 9 L14 16 L25 9 M14 16 L14 26 M8 20 L14 16 L20 20"/>',
+  esfera: '<circle cx="14" cy="14" r="10"/><ellipse cx="14" cy="14" rx="10" ry="4"/>',
+  cilindro: '<ellipse cx="14" cy="7" rx="8" ry="3"/><path d="M6 7 L6 21 M22 7 L22 21"/><path d="M6 21 A8 3 0 0 0 22 21"/>',
+  cono: '<path d="M14 3 L22 21 M14 3 L6 21"/><ellipse cx="14" cy="21" rx="8" ry="3"/>'
+};
+// Cada figura: datos que pide, fórmulas y función que devuelve [r1, r2] con el desarrollo
+const FIGURAS = [
+  { id:"cuadrado", nombre:"Cuadrado", tipo:"plana", datos:[["l","Lado"]],
+    formulas:["P = 4 · l","A = l²"],
+    calc:({l}) => [4*l, l*l, `4 · ${f(l)}`, `${f(l)}²`] },
+  { id:"rectangulo", nombre:"Rectángulo", tipo:"plana", datos:[["b","Base"],["h","Altura"]],
+    formulas:["P = 2 · (b + h)","A = b · h"],
+    calc:({b,h}) => [2*(b+h), b*h, `2 · (${f(b)} + ${f(h)})`, `${f(b)} · ${f(h)}`] },
+  { id:"triangulo", nombre:"Triángulo equilátero", tipo:"plana", datos:[["l","Lado"]],
+    formulas:["P = 3 · l","A = (√3 / 4) · l²"],
+    calc:({l}) => [3*l, S3/4*l*l, `3 · ${f(l)}`, `(√3 / 4) · ${f(l)}²`] },
+  { id:"circulo", nombre:"Círculo", tipo:"plana", datos:[["r","Radio"]],
+    formulas:["P = 2 · π · r","A = π · r²"],
+    calc:({r}) => [2*PI*r, PI*r*r, `2 · π · ${f(r)}`, `π · ${f(r)}²`] },
+  { id:"poligono", nombre:"Polígono regular", tipo:"plana", datos:[["n","Número de lados",true],["l","Lado"]],
+    formulas:["P = n · l","ap = l / (2 · tan(π / n))","A = P · ap / 2"],
+    calc:({n,l}) => { const P=n*l, ap=l/(2*Math.tan(PI/n)); return [P, P*ap/2, `${n} · ${f(l)}`, `${f(P)} · ${f(ap)} / 2  (ap = ${f(ap)})`]; } },
+  { id:"cubo", nombre:"Cubo (hexaedro)", tipo:"solido", datos:[["a","Arista"]],
+    formulas:["AS = 6 · a²","V = a³"],
+    calc:({a}) => [6*a*a, a**3, `6 · ${f(a)}²`, `${f(a)}³`] },
+  { id:"tetraedro", nombre:"Tetraedro regular", tipo:"solido", datos:[["a","Arista"]],
+    formulas:["AS = √3 · a²","V = a³ / (6 · √2)"],
+    calc:({a}) => [S3*a*a, a**3/(6*Math.SQRT2), `√3 · ${f(a)}²`, `${f(a)}³ / (6 · √2)`] },
+  { id:"octaedro", nombre:"Octaedro regular", tipo:"solido", datos:[["a","Arista"]],
+    formulas:["AS = 2 · √3 · a²","V = (√2 / 3) · a³"],
+    calc:({a}) => [2*S3*a*a, Math.SQRT2/3*a**3, `2 · √3 · ${f(a)}²`, `(√2 / 3) · ${f(a)}³`] },
+  { id:"dodecaedro", nombre:"Dodecaedro regular", tipo:"solido", datos:[["a","Arista"]],
+    formulas:["AS = 3 · √(25 + 10√5) · a²","V = (15 + 7√5) / 4 · a³"],
+    calc:({a}) => [3*Math.sqrt(25+10*S5)*a*a, (15+7*S5)/4*a**3, `3 · √(25 + 10√5) · ${f(a)}²`, `(15 + 7√5) / 4 · ${f(a)}³`] },
+  { id:"icosaedro", nombre:"Icosaedro regular", tipo:"solido", datos:[["a","Arista"]],
+    formulas:["AS = 5 · √3 · a²","V = 5 · (3 + √5) / 12 · a³"],
+    calc:({a}) => [5*S3*a*a, 5*(3+S5)/12*a**3, `5 · √3 · ${f(a)}²`, `5 · (3 + √5) / 12 · ${f(a)}³`] },
+  { id:"esfera", nombre:"Esfera", tipo:"solido", datos:[["r","Radio"]],
+    formulas:["AS = 4 · π · r²","V = (4 / 3) · π · r³"],
+    calc:({r}) => [4*PI*r*r, 4/3*PI*r**3, `4 · π · ${f(r)}²`, `(4 / 3) · π · ${f(r)}³`] },
+  { id:"cilindro", nombre:"Cilindro", tipo:"solido", datos:[["r","Radio"],["h","Altura"]],
+    formulas:["AS = 2 · π · r · (r + h)","V = π · r² · h"],
+    calc:({r,h}) => [2*PI*r*(r+h), PI*r*r*h, `2 · π · ${f(r)} · (${f(r)} + ${f(h)})`, `π · ${f(r)}² · ${f(h)}`] },
+  { id:"cono", nombre:"Cono", tipo:"solido", datos:[["r","Radio"],["h","Altura"]],
+    formulas:["g = √(r² + h²)","AS = π · r · (r + g)","V = π · r² · h / 3"],
+    calc:({r,h}) => { const g=Math.sqrt(r*r+h*h); return [PI*r*(r+g), PI*r*r*h/3, `π · ${f(r)} · (${f(r)} + ${f(g)})  (g = ${f(g)})`, `π · ${f(r)}² · ${f(h)} / 3`]; } }
+];
+
+function f(x) { return Number.isInteger(x) ? String(x) : x.toLocaleString("es-CO", { maximumFractionDigits: 2 }); }
+function fmt(x) { return x.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+const $ = id => document.getElementById(id);
+let actual = FIGURAS[0];
+
+function pintarMenu() {
+  for (const fig of FIGURAS) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.id = "fig-" + fig.id;
+    b.innerHTML = `<svg viewBox="0 0 28 28" aria-hidden="true">${ICON[fig.id]}</svg><span>${fig.nombre}</span>`;
+    b.addEventListener("click", () => { elegir(fig); $("paso2").scrollIntoView({ behavior: "smooth", block: "start" }); });
+    $(fig.tipo === "plana" ? "planas" : "solidos").appendChild(b);
+  }
+}
+
+function elegir(fig) {
+  actual = fig;
+  document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c.id === "fig-" + fig.id));
+  $("figName").textContent = fig.nombre.toLowerCase();
+  $("inputs").innerHTML = fig.datos.map(([k, label, entero]) => `
+    <div class="field">
+      <label for="in-${k}">${label}${entero ? "" : ' <span class="u"></span>'} <span class="req">*</span></label>
+      <input id="in-${k}" inputmode="decimal" autocomplete="off" placeholder="${entero ? "Ej: 6" : "Ej: 5"}">
+      <span class="err" id="err-${k}"></span>
+    </div>`).join("");
+  $("formulas").innerHTML = fig.formulas.map(t => `<div>${t}</div>`).join("");
+  actualizarUnidad();
+  $("paso3").hidden = true;
+}
+
+function actualizarUnidad() {
+  const u = $("unidad").value;
+  document.querySelectorAll(".u").forEach(s => s.textContent = u ? `(en ${u})` : "");
+}
+
+function marcar(id, errId, msg) {
+  $(id).setAttribute("aria-invalid", msg ? "true" : "false");
+  $(errId).textContent = msg || "";
+  return !msg;
+}
+
+function calcular(e) {
+  e.preventDefault();
+  let ok = true;
+  const u = $("unidad").value;
+  ok = marcar("unidad", "err-unidad", u ? "" : "La unidad es obligatoria. Elige mm, cm, m o km.") && ok;
+  const v = {};
+  for (const [k, , entero] of actual.datos) {
+    const txt = $("in-" + k).value.trim().replace(",", ".");
+    const n = Number(txt);
+    let msg = "";
+    if (txt === "") msg = "Este dato es obligatorio.";
+    else if (!isFinite(n)) msg = "Escribe un número válido.";
+    else if (n <= 0) msg = "El valor debe ser mayor que 0.";
+    else if (entero && (!Number.isInteger(n) || n < 3)) msg = "Debe ser un número entero mayor o igual a 3.";
+    ok = marcar("in-" + k, "err-" + k, msg) && ok;
+    v[k] = n;
+  }
+  if (!ok) { document.querySelector('[aria-invalid="true"]').focus(); return; }
+
+  const [r1, r2, w1, w2] = actual.calc(v);
+  const plana = actual.tipo === "plana";
+  $("t3").textContent = actual.nombre;
+  $("results").innerHTML = [
+    [plana ? "Perímetro" : "Área superficial", r1, plana ? u : u + "²", w1],
+    [plana ? "Área" : "Volumen", r2, plana ? u + "²" : u + "³", w2]
+  ].map(([n, r, un, w]) => `
+    <div class="result"><div class="name">${n}</div>
+    <div class="value">${fmt(r)} ${un}</div><div class="work">= ${w}</div></div>`).join("");
+  $("paso3").hidden = false;
+  $("paso3").scrollIntoView({ behavior: "smooth", block: "start" });
+  $("si").focus({ preventScroll: true });
+}
+
+function reiniciar() {
+  $("form").reset();
+  $("unidad").setAttribute("aria-invalid", "false"); $("err-unidad").textContent = "";
+  ["paso1", "paso2"].forEach(id => $(id).hidden = false);
+  $("fin").hidden = true;
+  elegir(actual);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+$("form").addEventListener("submit", calcular);
+$("unidad").addEventListener("change", () => { actualizarUnidad(); if ($("unidad").value) marcar("unidad", "err-unidad", ""); });
+$("si").addEventListener("click", reiniciar);
+$("no").addEventListener("click", () => {
+  ["paso1", "paso2", "paso3"].forEach(id => $(id).hidden = true);
+  $("fin").hidden = false;
+});
+$("reiniciar").addEventListener("click", reiniciar);
+
+pintarMenu();
+elegir(FIGURAS[0]);
+</script>
